@@ -5,6 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>탁구 대진표</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#0c3d53">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23f39a3d'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
@@ -53,7 +56,7 @@ a.action { display: flex; align-items: center; color: var(--text); text-decorati
   background: transparent;
   cursor: pointer;
 }
-#full[hidden] { display: none; }
+#full[hidden], .hidden { display: none; }
 #full:hover { background: var(--table); }
 #full span { width: 24px; height: 24px; border: 3px solid var(--line); background: transparent; }
 
@@ -189,6 +192,7 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
 <header>
   <h1>탁구 대진표</h1>
   <nav>
+    <button type="button" id="install" class="action hidden">앱 설치</button>
     <a class="action" href="https://patrickdfg.github.io/pingpong/">점수판</a>
     <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
   </nav>
@@ -431,6 +435,23 @@ if (document.documentElement.requestFullscreen) {
 } else {
   fullBtn.hidden = true;
 }
+
+// 앱 설치와 오프라인 사용 준비: 어느 쪽에서 열어도 두 페이지를 모두 저장한다
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/pingpong/sw.js', { scope: '/pingpong/' });
+  navigator.serviceWorker.register('/pingpong2/sw.js', { scope: '/pingpong2/' });
+}
+let installEvent = null;
+const installBtn = document.getElementById('install');
+addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  installEvent = e;
+  installBtn.classList.remove('hidden');
+});
+installBtn.addEventListener('click', () => {
+  installEvent.prompt();
+  installBtn.classList.add('hidden');
+});
 
 new ResizeObserver(() => Object.keys(EVENTS).forEach(drawLines)).observe(document.querySelector('main'));
 document.fonts?.ready.then(() => Object.keys(EVENTS).forEach(drawLines));
