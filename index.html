@@ -39,6 +39,22 @@ body {
 ::selection { background: var(--ball); color: var(--ball-ink); }
 h1 { margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
 
+header { display: flex; align-items: center; justify-content: space-between; }
+#full {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+#full[hidden] { display: none; }
+#full:hover { background: var(--table); }
+#full span { width: 24px; height: 24px; border: 3px solid var(--line); background: transparent; }
+
 /* 탁구대: 흰 테두리와 가운데 흰 선이 복식과 단식을 나눈다 */
 main {
   flex: 1;
@@ -168,7 +184,10 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
 </style>
 </head>
 <body>
-<h1>탁구 대진표</h1>
+<header>
+  <h1>탁구 대진표</h1>
+  <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
+</header>
 <main>
   <section class="event" id="doubles" aria-label="복식 대진표"></section>
   <section class="event mirror" id="singles" aria-label="단식 대진표"></section>
@@ -395,6 +414,17 @@ for (const id of Object.keys(EVENTS)) {
     if (next) next.focus(); else start(id);
   });
   render(id);
+}
+
+// 전체화면을 지원하지 않는 브라우저에서는 버튼을 숨긴다
+const fullBtn = document.getElementById('full');
+if (document.documentElement.requestFullscreen) {
+  fullBtn.addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen();
+  });
+} else {
+  fullBtn.hidden = true;
 }
 
 new ResizeObserver(() => Object.keys(EVENTS).forEach(drawLines)).observe(document.querySelector('main'));
