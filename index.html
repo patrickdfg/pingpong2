@@ -1,0 +1,401 @@
+<!-- 복식 4팀과 단식 8명의 탁구 대진표를 입력하고 승자를 올리는 단일 페이지 -->
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>탁구 대진표</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23f39a3d'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+:root {
+  color-scheme: dark;
+  --table: #12506b;
+  --table-deep: #0c3d53;
+  --table-lift: #1a6283;
+  --line: #eef6f8;
+  --line-soft: #6fa3b8;
+  --text: #f4f9fa;
+  --text-soft: #b7d3de;
+  --ball: #f39a3d;
+  --ball-ink: #15242c;
+  --warn: #ffd2a3;
+  --ease: cubic-bezier(.16, 1, .3, 1);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  background: var(--table-deep);
+  color: var(--text);
+  font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  word-break: keep-all;
+}
+::selection { background: var(--ball); color: var(--ball-ink); }
+h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
+
+/* 탁구대: 흰 테두리와 가운데 흰 선이 복식과 단식을 나눈다 */
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--table);
+  border: 5px solid var(--line);
+}
+.event {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+.event + .event { border-left: 5px solid var(--line); }
+.event-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.event-head h2 { margin: 0 auto 0 0; font-size: 1.375rem; font-weight: 800; }
+.event-head h2 small { margin-left: 6px; font-size: .9375rem; font-weight: 500; color: var(--text-soft); }
+.msg { margin: 0; min-height: 1.4em; font-size: .9375rem; line-height: 1.4; color: var(--text-soft); }
+.msg.warn { color: var(--warn); font-weight: 600; }
+
+button { font: inherit; color: inherit; }
+.action {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  font-size: .9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color .15s, color .15s;
+}
+.action:hover { background: var(--table-lift); }
+.action:active { background: var(--table-deep); }
+.action.main-action { background: var(--ball); border-color: var(--ball); color: var(--ball-ink); }
+.action.main-action:hover { background: #f7ae62; }
+.action.main-action:active { background: #e08a30; }
+
+.rounds { position: relative; flex: 1; display: flex; gap: 24px; min-height: 500px; }
+.event.mirror .rounds { flex-direction: row-reverse; }
+.lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.lines path { fill: none; stroke: var(--line-soft); stroke-width: 1.5; }
+.lines path.on { stroke: var(--ball); stroke-width: 3; }
+
+.round { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.round h3 { margin: 0 0 6px; font-size: .9375rem; font-weight: 700; text-align: center; color: var(--text-soft); }
+.match { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.cell { flex: 1; display: flex; align-items: center; min-height: 0; }
+
+.slot {
+  position: relative;
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 4px 10px;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 6px;
+  background: var(--table-deep);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.slot.empty { border-style: dashed; background: transparent; }
+button.slot { cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; }
+button.slot:not(:disabled):hover { background: var(--table-lift); border-color: var(--line); }
+button.slot:not(:disabled):active { background: var(--table); }
+button.slot:disabled { cursor: default; }
+button.slot.won,
+button.slot.won:not(:disabled):hover { background: var(--ball); border-color: var(--ball); color: var(--ball-ink); }
+button.slot.lost { color: var(--text-soft); font-weight: 500; }
+.slot.champion { min-height: 64px; background: var(--ball); border-color: var(--ball); color: var(--ball-ink); font-size: 1.3125rem; font-weight: 800; text-align: center; }
+.slot.champion.empty { background: transparent; border-color: var(--line-soft); }
+.slot.arrive { animation: arrive .5s var(--ease); }
+.event.mirror .slot.arrive { --from: 16px; }
+@keyframes arrive { from { opacity: .2; transform: translateX(var(--from, -16px)); } }
+
+.entry { padding: 5px 6px; gap: 4px; }
+.entry span { font-size: .8125rem; font-weight: 600; color: var(--text-soft); }
+.entry input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--table-lift);
+  color: var(--text);
+  font: inherit;
+  caret-color: var(--ball);
+}
+.entry input::placeholder { color: #d3e5ec; font-weight: 400; }
+.entry input.missing { box-shadow: inset 0 0 0 2px var(--warn); }
+
+:focus-visible { outline: 2.5px solid var(--ball); outline-offset: 2px; }
+.entry input:focus-visible { outline-offset: 0; }
+
+@media (max-width: 1039px) {
+  main { grid-template-columns: 1fr; }
+  .event + .event { border-left: 0; border-top: 5px solid var(--line); }
+}
+/* 폰: 연결선 없이 라운드를 위에서 아래로 쌓는다 */
+@media (max-width: 639px) {
+  body { padding: 8px; }
+  main { border-width: 3px; }
+  .event { padding: 12px; }
+  .event + .event { border-top-width: 3px; }
+  .rounds, .event.mirror .rounds { flex-direction: column; gap: 18px; min-height: 0; }
+  .lines { display: none; }
+  .round h3 { text-align: left; }
+  .round-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+  .round-body.solo { grid-template-columns: 1fr; }
+  .match { gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slot.arrive { animation: none; }
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<h1>탁구 대진표</h1>
+<main>
+  <section class="event" id="doubles" aria-label="복식 대진표"></section>
+  <section class="event mirror" id="singles" aria-label="단식 대진표"></section>
+</main>
+
+<script>
+const KEY = 'pingpong2';
+const EVENTS = {
+  doubles: { title: '복식', count: '4팀', size: 4, per: 2, labels: ['4강', '결승', '우승'], unit: '팀' },
+  singles: { title: '단식', count: '8명', size: 8, per: 1, labels: ['8강', '4강', '결승', '우승'], unit: '번' }
+};
+
+function blank(cfg) {
+  const rounds = Math.log2(cfg.size);
+  return {
+    playing: false,
+    names: Array.from({ length: cfg.size }, () => Array(cfg.per).fill('')),
+    wins: Array.from({ length: rounds }, (_, r) => Array(cfg.size >> (r + 1)).fill(null))
+  };
+}
+
+function load() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+  return {
+    doubles: saved?.doubles ?? blank(EVENTS.doubles),
+    singles: saved?.singles ?? blank(EVENTS.singles)
+  };
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+const state = load();
+const notes = { doubles: '', singles: '' };
+const arrivals = { doubles: null, singles: null };
+
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// c번째 열 k번째 칸에 들어간 참가자 번호 (아직 없으면 null)
+const seedAt = (st, c, k) => (c === 0 ? k : st.wins[c - 1][k]);
+
+function nameHtml(st, seed) {
+  return st.names[seed].map(n => `<span>${esc(n)}</span>`).join('');
+}
+
+function entryHtml(id, cfg, st, k) {
+  const inputs = st.names[k].map((n, i) => {
+    const label = cfg.per === 2 ? `${k + 1}팀 선수 ${i + 1}` : `${k + 1}번 선수`;
+    return `<input data-seed="${k}" data-pos="${i}" value="${esc(n)}" aria-label="${label}"
+      placeholder="${cfg.per === 2 ? '선수 ' + (i + 1) : k + 1 + '번 이름'}" maxlength="12" autocomplete="off">`;
+  }).join('');
+  const head = cfg.per === 2 ? `<span>${k + 1}팀</span>` : '';
+  return `<div class="slot entry">${head}${inputs}</div>`;
+}
+
+function slotHtml(id, st, c, k) {
+  const seed = seedAt(st, c, k);
+  const m = k >> 1;
+  const rival = seedAt(st, c, k ^ 1);
+  if (seed === null) return '<div class="slot empty"></div>';
+  const winner = st.wins[c][m];
+  const cls = winner === null ? '' : winner === seed ? 'won' : 'lost';
+  const arrive = arrivals[id] === `${c}-${k}` ? ' arrive' : '';
+  const off = st.playing && rival !== null ? '' : 'disabled';
+  return `<button type="button" class="slot ${cls}${arrive}" data-col="${c}" data-cell="${k}" ${off}
+    aria-pressed="${cls === 'won'}">${nameHtml(st, seed)}</button>`;
+}
+
+function roundHtml(id, cfg, st, c) {
+  const last = Math.log2(cfg.size);
+  let body;
+  if (c === last) {
+    const seed = st.wins[last - 1][0];
+    const arrive = arrivals[id] === `${c}-0` ? ' arrive' : '';
+    const slot = seed === null
+      ? '<div class="slot champion empty"></div>'
+      : `<div class="slot champion${arrive}" data-col="${c}" data-cell="0">${nameHtml(st, seed)}</div>`;
+    body = `<div class="round-body match solo"><div class="match"><div class="cell" data-col="${c}" data-cell="0">${slot}</div></div></div>`;
+  } else {
+    const cells = cfg.size >> c;
+    let matches = '';
+    for (let k = 0; k < cells; k += 2) {
+      const pair = [k, k + 1].map(i => {
+        const inner = c === 0 && !st.playing ? entryHtml(id, cfg, st, i) : slotHtml(id, st, c, i);
+        return `<div class="cell" data-col="${c}" data-cell="${i}">${inner}</div>`;
+      }).join('');
+      matches += `<div class="match">${pair}</div>`;
+    }
+    const solo = cells === 2 ? ' solo' : '';
+    body = `<div class="round-body match${solo}">${matches}</div>`;
+  }
+  return `<div class="round"><h3>${cfg.labels[c]}</h3>${body}</div>`;
+}
+
+function render(id) {
+  const cfg = EVENTS[id];
+  const st = state[id];
+  const box = document.getElementById(id);
+  const focused = document.activeElement?.closest?.(`#${id} [data-col]`);
+  const focusKey = focused && `[data-col="${focused.dataset.col}"][data-cell="${focused.dataset.cell}"]`;
+  const columns = Math.log2(cfg.size) + 1;
+  const rounds = Array.from({ length: columns }, (_, c) => roundHtml(id, cfg, st, c)).join('');
+  const hint = notes[id] || (st.playing
+    ? '이긴 쪽 이름을 누르면 다음 칸으로 올라갑니다. 다시 누르면 취소됩니다.'
+    : '이름을 모두 쓰고 대진 시작을 누르세요.');
+  const buttons = st.playing
+    ? `<button type="button" class="action" data-do="edit">이름 고치기</button>
+       <button type="button" class="action" data-do="clear">결과 지우기</button>`
+    : '<button type="button" class="action main-action" data-do="start">대진 시작</button>';
+  box.innerHTML = `
+    <div class="event-head"><h2>${cfg.title}<small>${cfg.count}</small></h2>${buttons}</div>
+    <p class="msg ${notes[id] ? 'warn' : ''}" role="status">${hint}</p>
+    <div class="rounds"><svg class="lines" aria-hidden="true"></svg>${rounds}</div>`;
+  if (focusKey) box.querySelector(`button${focusKey}`)?.focus();
+  drawLines(id);
+}
+
+// 칸 사이 연결선은 실제 칸 위치를 재서 그리고 승자 쪽 선만 공 색으로 칠한다
+function drawLines(id) {
+  const box = document.getElementById(id);
+  const wrap = box.querySelector('.rounds');
+  const svg = box.querySelector('.lines');
+  const st = state[id];
+  const mirror = box.classList.contains('mirror');
+  const base = wrap.getBoundingClientRect();
+  const last = Math.log2(EVENTS[id].size);
+  const point = (c, k, side) => {
+    const r = box.querySelector(`.cell[data-col="${c}"][data-cell="${k}"]`).getBoundingClientRect();
+    return { x: (side === 'left' ? r.left : r.right) - base.left, y: r.top + r.height / 2 - base.top };
+  };
+  const off = [], on = [];
+  for (let c = 0; c < last; c++) {
+    for (let k = 0; k < EVENTS[id].size >> c; k++) {
+      const from = point(c, k, mirror ? 'left' : 'right');
+      const to = point(c + 1, k >> 1, mirror ? 'right' : 'left');
+      const mid = (from.x + to.x) / 2;
+      const seed = seedAt(st, c, k);
+      const won = seed !== null && st.wins[c][k >> 1] === seed;
+      (won ? on : off).push(`<path class="${won ? 'on' : ''}" d="M${from.x} ${from.y}H${mid}V${to.y}H${to.x}"/>`);
+    }
+  }
+  svg.innerHTML = off.join('') + on.join('');
+}
+
+function pick(id, c, k) {
+  const st = state[id];
+  const seed = seedAt(st, c, k);
+  const m = k >> 1;
+  const old = st.wins[c][m];
+  st.wins[c][m] = old === seed ? null : seed;
+  // 바뀐 승자가 이미 더 올라가 있었다면 그 위 결과도 비운다
+  if (old !== null) {
+    for (let r = c + 1; r < st.wins.length; r++) {
+      const up = m >> (r - c);
+      if (st.wins[r][up] === old) st.wins[r][up] = null;
+    }
+  }
+  arrivals[id] = st.wins[c][m] === null ? null : `${c + 1}-${m}`;
+  save();
+  render(id);
+  arrivals[id] = null;
+}
+
+function start(id) {
+  const st = state[id];
+  const box = document.getElementById(id);
+  const missing = [...box.querySelectorAll('.entry input')].filter(i => !i.value.trim());
+  box.querySelectorAll('.entry input').forEach(i => i.classList.toggle('missing', !i.value.trim()));
+  if (missing.length) {
+    const msg = box.querySelector('.msg');
+    msg.textContent = `이름 ${missing.length}칸이 비어 있습니다. 표시된 칸을 채워 주세요.`;
+    msg.classList.add('warn');
+    missing[0].focus();
+    return;
+  }
+  st.names = st.names.map(row => row.map(n => n.trim()));
+  st.playing = true;
+  save();
+  render(id);
+}
+
+let clearTimer = {};
+function clearResults(id, btn) {
+  if (!clearTimer[id]) {
+    btn.textContent = '한 번 더 누르면 지웁니다';
+    clearTimer[id] = setTimeout(() => {
+      clearTimer[id] = null;
+      btn.textContent = '결과 지우기';
+    }, 3000);
+    return;
+  }
+  clearTimeout(clearTimer[id]);
+  clearTimer[id] = null;
+  state[id].wins = blank(EVENTS[id]).wins;
+  save();
+  render(id);
+}
+
+for (const id of Object.keys(EVENTS)) {
+  const box = document.getElementById(id);
+  box.addEventListener('click', e => {
+    const act = e.target.closest('[data-do]');
+    if (act) {
+      if (act.dataset.do === 'start') start(id);
+      if (act.dataset.do === 'clear') clearResults(id, act);
+      if (act.dataset.do === 'edit') { state[id].playing = false; save(); render(id); }
+      return;
+    }
+    const slot = e.target.closest('button.slot');
+    if (slot) pick(id, +slot.dataset.col, +slot.dataset.cell);
+  });
+  box.addEventListener('input', e => {
+    const { seed, pos } = e.target.dataset;
+    state[id].names[seed][pos] = e.target.value;
+    e.target.classList.remove('missing');
+    save();
+  });
+  // 엔터를 누르면 다음 이름 칸으로 간다
+  box.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || e.isComposing) return;
+    const inputs = [...box.querySelectorAll('.entry input')];
+    const next = inputs[inputs.indexOf(e.target) + 1];
+    if (next) next.focus(); else start(id);
+  });
+  render(id);
+}
+
+new ResizeObserver(() => Object.keys(EVENTS).forEach(drawLines)).observe(document.querySelector('main'));
+document.fonts?.ready.then(() => Object.keys(EVENTS).forEach(drawLines));
+</script>
+</body>
+</html>
