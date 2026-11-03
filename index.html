@@ -40,6 +40,8 @@ body {
 h1 { margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
 
 header { display: flex; align-items: center; justify-content: space-between; }
+header nav { display: flex; align-items: center; gap: 8px; }
+a.action { display: flex; align-items: center; color: var(--text); text-decoration: none; }
 #full {
   width: 40px;
   height: 40px;
@@ -186,7 +188,10 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
 <body>
 <header>
   <h1>탁구 대진표</h1>
-  <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
+  <nav>
+    <a class="action" href="https://patrickdfg.github.io/pingpong/">점수판</a>
+    <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
+  </nav>
 </header>
 <main>
   <section class="event" id="doubles" aria-label="복식 대진표"></section>
