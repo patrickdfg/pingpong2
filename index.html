@@ -21,6 +21,7 @@
   --ball-ink: #15242c;
   --warn: #ffd2a3;
   --ease: cubic-bezier(.16, 1, .3, 1);
+  --name: min(2.5vw, 4.8vh);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; }
@@ -28,15 +29,15 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  padding: 16px;
-  gap: 12px;
+  padding: 8px 12px 12px;
+  gap: 6px;
   background: var(--table-deep);
   color: var(--text);
   font-family: "Pretendard Variable", Pretendard, "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   word-break: keep-all;
 }
 ::selection { background: var(--ball); color: var(--ball-ink); }
-h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -.02em; }
+h1 { margin: 0; font-size: 1.75rem; font-weight: 800; letter-spacing: -.02em; }
 
 /* 탁구대: 흰 테두리와 가운데 흰 선이 복식과 단식을 나눈다 */
 main {
@@ -50,14 +51,14 @@ main {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 6px;
+  padding: 8px 12px 12px;
 }
 .event + .event { border-left: 5px solid var(--line); }
 .event-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-.event-head h2 { margin: 0 auto 0 0; font-size: 1.375rem; font-weight: 800; }
-.event-head h2 small { margin-left: 6px; font-size: .9375rem; font-weight: 500; color: var(--text-soft); }
-.msg { margin: 0; min-height: 1.4em; font-size: .9375rem; line-height: 1.4; color: var(--text-soft); }
+.event-head h2 { margin: 0 auto 0 0; font-size: 2rem; font-weight: 800; }
+.event-head h2 small { margin-left: 6px; font-size: 1.25rem; font-weight: 500; color: var(--text-soft); }
+.msg { margin: 0; min-height: 1.4em; font-size: 1.0625rem; line-height: 1.4; color: var(--text-soft); }
 .msg.warn { color: var(--warn); font-weight: 600; }
 
 button { font: inherit; color: inherit; }
@@ -67,7 +68,7 @@ button { font: inherit; color: inherit; }
   border: 1.5px solid var(--line);
   border-radius: 6px;
   background: transparent;
-  font-size: .9375rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   cursor: pointer;
   transition: background-color .15s, color .15s;
@@ -78,31 +79,32 @@ button { font: inherit; color: inherit; }
 .action.main-action:hover { background: #f7ae62; }
 .action.main-action:active { background: #e08a30; }
 
-.rounds { position: relative; flex: 1; display: flex; gap: 24px; min-height: 500px; }
+.rounds { position: relative; flex: 1; display: flex; gap: 14px; min-height: 440px; }
 .event.mirror .rounds { flex-direction: row-reverse; }
 .lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .lines path { fill: none; stroke: var(--line-soft); stroke-width: 1.5; }
 .lines path.on { stroke: var(--ball); stroke-width: 3; }
 
 .round { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.round h3 { margin: 0 0 6px; font-size: .9375rem; font-weight: 700; text-align: center; color: var(--text-soft); }
+.round h3 { margin: 0 0 2px; font-size: 1.25rem; font-weight: 700; text-align: center; color: var(--text-soft); }
+.round:nth-child(2) { flex: 1.35; }
 .match { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .cell { flex: 1; display: flex; align-items: center; min-height: 0; }
 
 .slot {
   position: relative;
   width: 100%;
-  min-height: 46px;
+  min-height: calc(var(--name) * 1.75);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 4px 10px;
+  padding: 2px 6px;
   border: 1.5px solid var(--line-soft);
   border-radius: 6px;
   background: var(--table-deep);
-  font-size: 1.0625rem;
-  font-weight: 600;
-  line-height: 1.25;
+  font-size: var(--name);
+  font-weight: 700;
+  line-height: 1.15;
   text-align: left;
   overflow-wrap: anywhere;
 }
@@ -114,19 +116,18 @@ button.slot:disabled { cursor: default; }
 button.slot.won,
 button.slot.won:not(:disabled):hover { background: var(--ball); border-color: var(--ball); color: var(--ball-ink); }
 button.slot.lost { color: var(--text-soft); font-weight: 500; }
-.slot.champion { min-height: 64px; background: var(--ball); border-color: var(--ball); color: var(--ball-ink); font-size: 1.3125rem; font-weight: 800; text-align: center; }
+.slot.champion { min-height: calc(var(--name) * 2.4); background: var(--ball); border-color: var(--ball); color: var(--ball-ink); font-size: calc(var(--name) * 1.35); font-weight: 800; text-align: center; }
 .slot.champion.empty { background: transparent; border-color: var(--line-soft); }
 .slot.arrive { animation: arrive .5s var(--ease); }
 .event.mirror .slot.arrive { --from: 16px; }
 @keyframes arrive { from { opacity: .2; transform: translateX(var(--from, -16px)); } }
 
-.entry { padding: 5px 6px; gap: 4px; }
-.entry span { font-size: .8125rem; font-weight: 600; color: var(--text-soft); }
+.entry { padding: 3px; gap: 3px; }
 .entry input {
   width: 100%;
   min-width: 0;
-  height: 32px;
-  padding: 0 6px;
+  height: calc(var(--name) * 1.6);
+  padding: 0 4px;
   border: 0;
   border-radius: 4px;
   background: var(--table-lift);
@@ -134,18 +135,20 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
   font: inherit;
   caret-color: var(--ball);
 }
-.entry input::placeholder { color: #d3e5ec; font-weight: 400; }
+.entry input::placeholder { color: #d3e5ec; font-weight: 400; font-size: .8em; }
 .entry input.missing { box-shadow: inset 0 0 0 2px var(--warn); }
 
 :focus-visible { outline: 2.5px solid var(--ball); outline-offset: 2px; }
 .entry input:focus-visible { outline-offset: 0; }
 
 @media (max-width: 1039px) {
+  :root { --name: 1.75rem; }
   main { grid-template-columns: 1fr; }
   .event + .event { border-left: 0; border-top: 5px solid var(--line); }
 }
 /* 폰: 연결선 없이 라운드를 위에서 아래로 쌓는다 */
 @media (max-width: 639px) {
+  :root { --name: 1.6rem; }
   body { padding: 8px; }
   main { border-width: 3px; }
   .event { padding: 12px; }
@@ -216,10 +219,9 @@ function entryHtml(id, cfg, st, k) {
   const inputs = st.names[k].map((n, i) => {
     const label = cfg.per === 2 ? `${k + 1}팀 선수 ${i + 1}` : `${k + 1}번 선수`;
     return `<input data-seed="${k}" data-pos="${i}" value="${esc(n)}" aria-label="${label}"
-      placeholder="${cfg.per === 2 ? '선수 ' + (i + 1) : k + 1 + '번 이름'}" maxlength="12" autocomplete="off">`;
+      placeholder="${cfg.per === 2 ? `${k + 1}팀 선수 ${i + 1}` : `${k + 1}번 이름`}" maxlength="12" autocomplete="off">`;
   }).join('');
-  const head = cfg.per === 2 ? `<span>${k + 1}팀</span>` : '';
-  return `<div class="slot entry">${head}${inputs}</div>`;
+  return `<div class="slot entry">${inputs}</div>`;
 }
 
 function slotHtml(id, st, c, k) {
