@@ -1,9 +1,11 @@
-// 인터넷이 끊겨도 대진표가 열리도록 저장해 두는 서비스 워커
+// 인터넷이 끊겨도 대진표와 점수판이 열리도록 저장해 두는 서비스 워커
 const CACHE = 'pingpong2-v1';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all([
     c.add('./'),
+    c.add('score.html'),
+    c.add(new Request('https://cdn.tailwindcss.com', { mode: 'no-cors' })).catch(() => {})
   ])).then(() => self.skipWaiting()));
 });
 

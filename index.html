@@ -193,7 +193,7 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
   <h1>탁구 대진표</h1>
   <nav>
     <button type="button" id="install" class="action hidden">앱 설치</button>
-    <a class="action" href="https://patrickdfg.github.io/pingpong/">점수판</a>
+    <a class="action" href="score.html">점수판</a>
     <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
   </nav>
 </header>
@@ -436,10 +436,9 @@ if (document.documentElement.requestFullscreen) {
   fullBtn.hidden = true;
 }
 
-// 앱 설치와 오프라인 사용 준비: 어느 쪽에서 열어도 두 페이지를 모두 저장한다
+// 앱 설치와 오프라인 사용 준비
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/pingpong/sw.js', { scope: '/pingpong/' });
-  navigator.serviceWorker.register('/pingpong2/sw.js', { scope: '/pingpong2/' });
+  navigator.serviceWorker.register('sw.js');
 }
 let installEvent = null;
 const installBtn = document.getElementById('install');

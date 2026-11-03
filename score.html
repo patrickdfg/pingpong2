@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 모바일 웹앱(PWA) 설정 (홈 화면에 추가 시 앱처럼 구동) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>탁구 점수판</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <meta name="theme-color" content="#0c3d53">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: contain; }
+        .transition-colors-500 { transition: background-color 0.5s ease, border-color 0.5s ease, color 0.5s ease; }
+    </style>
+</head>
+<body class="bg-slate-950 text-white select-none font-sans overflow-hidden flex flex-col h-screen w-full">
+
+    <!-- 상단 컨트롤 바 -->
+    <div class="h-12 sm:h-14 lg:h-16 flex items-center justify-between px-2 sm:px-6 bg-slate-900 border-b border-slate-800 shrink-0 z-20">
+        <div class="flex items-center gap-1 sm:gap-2">
+            <!-- 자리 바꾸기 -->
+            <button onclick="switchSides()" class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-slate-300 transition-colors text-sm sm:text-base">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></svg>
+                <span class="hidden md:inline">자리 바꾸기</span>
+            </button>
+            
+            <!-- 전체화면 -->
+            <button onclick="toggleFullScreen()" class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-slate-300 transition-colors text-sm sm:text-base">
+                <svg id="fsIcon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+                <span class="hidden md:inline">전체화면</span>
+            </button>
+
+            <!-- 대진표로 이동 (돌아왔을 때 이어가도록 점수를 저장) -->
+            <a href="./" onclick="sessionStorage.setItem('pingpong-score', JSON.stringify(state))" class="flex items-center px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-slate-300 transition-colors text-sm sm:text-base whitespace-nowrap">대진표</a>
+
+            <!-- 앱 설치 (설치할 수 있을 때만 보임) -->
+            <button id="install" class="hidden px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 hover:bg-slate-700 rounded-lg font-bold text-slate-300 transition-colors text-sm sm:text-base whitespace-nowrap">앱 설치</button>
+
+            <!-- 11점 / 15점 게임 모드 토글 스위치 -->
+            <div class="flex bg-slate-800 rounded-lg p-1 ml-1 sm:ml-2 shrink-0 border border-slate-700">
+                <button id="btn-11" onclick="setGameMode(11)" class="px-2 py-1 sm:px-4 text-xs sm:text-base font-bold rounded-md transition-colors bg-slate-600 text-white shadow-sm">11점</button>
+                <button id="btn-15" onclick="setGameMode(15)" class="px-2 py-1 sm:px-4 text-xs sm:text-base font-bold rounded-md transition-colors text-slate-400 hover:text-white">15점</button>
+            </div>
+        </div>
+
+        <!-- 타이틀 -->
+        <h1 class="text-sm sm:text-xl font-bold tracking-widest text-slate-400 hidden lg:block mx-4 whitespace-nowrap">탁구 점수판</h1>
+        
+        <!-- 초기화 -->
+        <button onclick="showModal('resetModal')" class="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 bg-slate-800 hover:bg-red-900/50 text-slate-300 hover:text-red-400 rounded-lg font-bold transition-colors shrink-0 text-sm sm:text-base">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <span class="hidden sm:inline">초기화</span>
+        </button>
+    </div>
+
+    <!-- 메인 영역 -->
+    <div class="flex flex-1 w-full relative flex-col landscape:flex-row">
+        <!-- 상단/좌측 (홈) -->
+        <div id="leftZone" class="flex-1 flex flex-col relative border-b landscape:border-b-0 landscape:border-r border-slate-900 transition-colors-500">
+            <!-- 서브권 바 -->
+            <div id="leftServeBar" onclick="setFirstServer('left')" class="w-full h-[12%] lg:h-[15%] shrink-0 min-h-[30px] sm:min-h-[40px] flex items-center justify-center cursor-pointer transition-all duration-500 font-bold text-xs sm:text-xl landscape:text-lg lg:landscape:text-3xl tracking-widest z-20">
+                서브
+            </div>
+
+            <div class="h-auto py-2 sm:py-4 min-h-[60px] sm:min-h-[110px] landscape:min-h-[70px] lg:landscape:min-h-[140px] flex flex-col items-center justify-center relative z-10 bg-gradient-to-b from-slate-900/40 to-transparent">
+                <!-- 세트 점수 뱃지 -->
+                <div id="leftBadge" class="flex items-center gap-2 sm:gap-6 px-3 sm:px-8 py-1.5 sm:py-4 landscape:py-2 lg:landscape:py-6 rounded-full mb-1 sm:mb-2 backdrop-blur-sm transition-colors-500 shadow-lg">
+                    <button onclick="adjustSets('left', -1)" class="p-1 sm:p-3 hover:bg-white/20 rounded-full transition-colors"><svg class="w-5 h-5 sm:w-10 sm:h-10 landscape:w-7 landscape:h-7 lg:landscape:w-12 lg:landscape:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+                    <span id="leftSetsDisplay" class="text-2xl sm:text-6xl md:text-7xl landscape:text-3xl lg:landscape:text-[6rem] font-extrabold px-3 sm:px-6 whitespace-nowrap">세트 0</span>
+                    <button onclick="adjustSets('left', 1)" class="p-1 sm:p-3 hover:bg-white/20 rounded-full transition-colors"><svg class="w-5 h-5 sm:w-10 sm:h-10 landscape:w-7 landscape:h-7 lg:landscape:w-12 lg:landscape:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+                </div>
+            </div>
+            <!-- 메인 점수 -->
+            <button onclick="addScore('left')" id="leftScoreBtn" class="flex-1 w-full flex items-center justify-center focus:outline-none transition-colors-500 group relative z-0">
+                <span id="leftScoreDisplay" class="text-[25dvh] sm:text-[30dvh] landscape:text-[45dvh] lg:landscape:text-[55dvh] leading-none font-bold tabular-nums tracking-tighter drop-shadow-2xl group-active:scale-95 transition-transform">0</span>
+            </button>
+            <div class="absolute bottom-2 sm:bottom-6 landscape:bottom-2 lg:landscape:bottom-6 left-1/2 -translate-x-1/2 z-10">
+                <button onclick="minusScore('left')" class="px-3 py-1.5 sm:px-6 sm:py-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full text-white/90 font-bold text-xs sm:text-lg flex items-center gap-1 sm:gap-2 transition-colors">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg> 1점 취소
+                </button>
+            </div>
+        </div>
+
+        <!-- 하단/우측 (원정) -->
+        <div id="rightZone" class="flex-1 flex flex-col relative transition-colors-500">
+            <!-- 서브권 바 -->
+            <div id="rightServeBar" onclick="setFirstServer('right')" class="w-full h-[12%] lg:h-[15%] shrink-0 min-h-[30px] sm:min-h-[40px] flex items-center justify-center cursor-pointer transition-all duration-500 font-bold text-xs sm:text-xl landscape:text-lg lg:landscape:text-3xl tracking-widest z-20">
+                서브
+            </div>
+
+            <div class="h-auto py-2 sm:py-4 min-h-[60px] sm:min-h-[110px] landscape:min-h-[70px] lg:landscape:min-h-[140px] flex flex-col items-center justify-center relative z-10 bg-gradient-to-b from-slate-900/40 to-transparent">
+                <!-- 세트 점수 뱃지 -->
+                <div id="rightBadge" class="flex items-center gap-2 sm:gap-6 px-3 sm:px-8 py-1.5 sm:py-4 landscape:py-2 lg:landscape:py-6 rounded-full mb-1 sm:mb-2 backdrop-blur-sm transition-colors-500 shadow-lg">
+                    <button onclick="adjustSets('right', -1)" class="p-1 sm:p-3 hover:bg-white/20 rounded-full transition-colors"><svg class="w-5 h-5 sm:w-10 sm:h-10 landscape:w-7 landscape:h-7 lg:landscape:w-12 lg:landscape:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/></svg></button>
+                    <span id="rightSetsDisplay" class="text-2xl sm:text-6xl md:text-7xl landscape:text-3xl lg:landscape:text-[6rem] font-extrabold px-3 sm:px-6 whitespace-nowrap">세트 0</span>
+                    <button onclick="adjustSets('right', 1)" class="p-1 sm:p-3 hover:bg-white/20 rounded-full transition-colors"><svg class="w-5 h-5 sm:w-10 sm:h-10 landscape:w-7 landscape:h-7 lg:landscape:w-12 lg:landscape:h-12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12h14"/><path d="M12 5v14"/></svg></button>
+                </div>
+            </div>
+            <!-- 메인 점수 -->
+            <button onclick="addScore('right')" id="rightScoreBtn" class="flex-1 w-full flex items-center justify-center focus:outline-none transition-colors-500 group relative z-0">
+                <span id="rightScoreDisplay" class="text-[25dvh] sm:text-[30dvh] landscape:text-[45dvh] lg:landscape:text-[55dvh] leading-none font-bold tabular-nums tracking-tighter drop-shadow-2xl group-active:scale-95 transition-transform">0</span>
+            </button>
+            <div class="absolute bottom-2 sm:bottom-6 landscape:bottom-2 lg:landscape:bottom-6 left-1/2 -translate-x-1/2 z-10">
+                <button onclick="minusScore('right')" class="px-3 py-1.5 sm:px-6 sm:py-3 bg-black/40 hover:bg-black/60 backdrop-blur-sm rounded-full text-white/90 font-bold text-xs sm:text-lg flex items-center gap-1 sm:gap-2 transition-colors">
+                    <svg class="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg> 1점 취소
+                </button>
+            </div>
+        </div>
+
+        <!-- 세트 승리 모달 -->
+        <div id="winModal" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm z-30 flex items-center justify-center p-4">
+            <div class="bg-slate-900 border-2 border-yellow-500 p-6 sm:p-8 rounded-3xl text-center shadow-[0_0_50px_rgba(234,179,8,0.3)] w-full max-w-lg">
+                <svg class="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-yellow-400 mb-4 sm:mb-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+                <h2 class="text-2xl sm:text-3xl font-bold text-white mb-2 sm:mb-3"><span id="winNameDisplay">RED 진영</span> <span class="text-yellow-400">세트 승리!</span></h2>
+                <p class="text-slate-400 text-sm sm:text-base mb-6 sm:mb-8">다음 세트를 시작하면 점수가 0으로 초기화됩니다.</p>
+                <button id="nextSetBtn" class="w-full py-3 sm:py-4 bg-yellow-500 hover:bg-yellow-400 text-yellow-950 font-bold text-xl sm:text-2xl rounded-xl">다음 세트 시작</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 경기 시작 서브 선택 -->
+    <dialog id="firstServeModal" aria-labelledby="firstServeTitle" aria-describedby="firstServeDescription" class="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl w-[calc(100%-2rem)] max-w-sm border border-slate-700 shadow-2xl backdrop:bg-black/80 backdrop:backdrop-blur-sm">
+        <h2 id="firstServeTitle" class="text-xl sm:text-2xl font-bold text-center mb-3">첫 서브 선택</h2>
+        <p id="firstServeDescription" class="text-slate-400 text-sm sm:text-base text-center mb-6">먼저 서브할 진영을 선택하면 경기가 시작됩니다.</p>
+        <div class="flex flex-col landscape:flex-row gap-3">
+            <button type="button" onclick="startGame('left')" class="flex-1 py-4 px-3 bg-red-600 hover:bg-red-500 rounded-xl font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-400">
+                <span class="block text-lg">RED 진영</span>
+                <span class="text-sm font-normal landscape:hidden">위쪽에서 시작</span>
+                <span class="text-sm font-normal hidden landscape:inline">왼쪽에서 시작</span>
+            </button>
+            <button type="button" onclick="startGame('right')" class="flex-1 py-4 px-3 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-yellow-400">
+                <span class="block text-lg">BLUE 진영</span>
+                <span class="text-sm font-normal landscape:hidden">아래쪽에서 시작</span>
+                <span class="text-sm font-normal hidden landscape:inline">오른쪽에서 시작</span>
+            </button>
+        </div>
+    </dialog>
+
+    <!-- 초기화 모달 -->
+    <div id="resetModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 p-6 sm:p-8 rounded-3xl max-w-sm w-full text-center border border-slate-700 shadow-2xl">
+            <h2 class="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">전체 초기화</h2>
+            <p class="text-slate-400 text-sm sm:text-base mb-6 sm:mb-8">모든 기록이 삭제됩니다. 진행하시겠습니까?</p>
+            <div class="flex gap-3">
+                <button onclick="hideModal('resetModal')" class="flex-1 py-2 sm:py-3 bg-slate-800 text-white rounded-xl font-bold">취소</button>
+                <button onclick="resetAll()" class="flex-1 py-2 sm:py-3 bg-red-600 text-white rounded-xl font-bold">초기화</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 전체화면 안내 모달 -->
+    <div id="fsErrorModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 p-6 sm:p-8 rounded-3xl max-w-sm w-full text-center border border-slate-700 shadow-2xl">
+            <h2 class="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">앱으로 띄우기 안내</h2>
+            <div class="text-slate-400 text-sm sm:text-base mb-6 sm:mb-8 text-left space-y-4">
+                <p>완벽한 전체화면을 위해 브라우저 메뉴에서 <span class="text-yellow-400 font-bold">'홈 화면에 추가'</span>를 눌러 바탕화면 아이콘으로 실행해주세요.</p>
+            </div>
+            <button onclick="hideModal('fsErrorModal')" class="w-full py-2 sm:py-3 bg-slate-800 text-white rounded-xl font-bold">확인</button>
+        </div>
+    </div>
+
+    <script>
+        let state = {
+            left: { score: 0, sets: 0, color: 'red' },
+            right: { score: 0, sets: 0, color: 'blue' },
+            firstServer: 'left',
+            currentServer: 'left',
+            winner: null,
+            gameMode: 11 // 기본 11점 세팅
+        };
+
+        const themes = {
+            red: { zone: 'bg-red-600', badge: 'bg-red-900/40', btn: 'active:bg-red-700' },
+            blue: { zone: 'bg-blue-600', badge: 'bg-blue-900/40', btn: 'active:bg-blue-700' }
+        };
+
+        // 서브권 바 공통 클래스 분리 (모바일/PC 반응형 대응)
+        const baseBarClass = "w-full h-[12%] lg:h-[15%] shrink-0 min-h-[30px] sm:min-h-[40px] flex items-center justify-center cursor-pointer transition-all duration-500 font-bold text-xs sm:text-xl landscape:text-lg lg:landscape:text-3xl tracking-widest z-20";
+
+        // 게임 모드 설정 (11점 / 15점 전환)
+        function setGameMode(mode) {
+            state.gameMode = mode;
+            calculateServer();
+            render();
+            checkWin();
+        }
+
+        function calculateServer() {
+            const total = state.left.score + state.right.score;
+            // 11점(10:10 듀스) 또는 15점(14:14 듀스)에 맞춘 로직
+            const deucePoint = state.gameMode - 1; 
+            const deuceTotal = deucePoint * 2;
+            
+            let turns = total < deuceTotal ? Math.floor(total / 2) : deucePoint + (total - deuceTotal);
+            state.currentServer = (turns % 2 === 0) ? state.firstServer : (state.firstServer === 'left' ? 'right' : 'left');
+        }
+
+        function checkWin() {
+            // 현재 설정된 gameMode(11 또는 15)를 반영하여 승리 조건 체크
+            const lWin = state.left.score >= state.gameMode && (state.left.score - state.right.score >= 2);
+            const rWin = state.right.score >= state.gameMode && (state.right.score - state.left.score >= 2);
+            state.winner = lWin ? 'left' : (rWin ? 'right' : null);
+
+            if (state.winner) {
+                const winnerColor = state[state.winner].color === 'red' ? 'RED 진영' : 'BLUE 진영';
+                document.getElementById('winNameDisplay').textContent = winnerColor;
+                showModal('winModal');
+            } else {
+                hideModal('winModal');
+            }
+        }
+
+        function addScore(side) { state[side].score++; calculateServer(); render(); checkWin(); }
+        function minusScore(side) { if (state[side].score > 0) { state[side].score--; calculateServer(); render(); checkWin(); } }
+        function adjustSets(side, amount) { state[side].sets = Math.max(0, state[side].sets + amount); render(); }
+        function setFirstServer(side) { state.firstServer = side; calculateServer(); render(); }
+
+        function startGame(side) {
+            setFirstServer(side);
+            document.getElementById('firstServeModal').close();
+            document.getElementById(side + 'ScoreBtn').focus();
+        }
+
+        function switchSides() {
+            const temp = { ...state.left };
+            state.left = { ...state.right };
+            state.right = temp;
+            state.firstServer = state.firstServer === 'left' ? 'right' : 'left';
+            calculateServer();
+            render();
+        }
+
+        function startNextSet() {
+            if (state.winner) {
+                state[state.winner].sets++;
+                state.left.score = 0;
+                state.right.score = 0;
+                state.firstServer = state.firstServer === 'left' ? 'right' : 'left';
+                state.winner = null;
+                calculateServer();
+                render();
+                checkWin();
+            }
+        }
+
+        function resetAll() {
+            state.left = { score: 0, sets: 0, color: 'red' };
+            state.right = { score: 0, sets: 0, color: 'blue' };
+            state.firstServer = 'left';
+            state.winner = null;
+            // 게임 모드(11점/15점) 설정은 초기화 시 유지됩니다.
+            hideModal('resetModal');
+            calculateServer();
+            render();
+            checkWin();
+            document.getElementById('firstServeModal').showModal();
+        }
+
+        function applyTheme(side) {
+            const c = themes[state[side].color];
+            document.getElementById(`${side}Zone`).className = `flex-1 flex flex-col relative border-b landscape:border-b-0 landscape:border-r border-slate-900 transition-colors-500 ${c.zone}`;
+            document.getElementById(`${side}Badge`).className = `flex items-center gap-2 sm:gap-6 px-3 sm:px-8 py-1.5 sm:py-4 landscape:py-2 lg:landscape:py-6 rounded-full mb-1 sm:mb-2 backdrop-blur-sm transition-colors-500 shadow-lg ${c.badge}`;
+            document.getElementById(`${side}ScoreBtn`).className = `flex-1 w-full flex items-center justify-center focus:outline-none transition-colors-500 group relative z-0 ${c.btn}`;
+        }
+
+        function render() {
+            document.getElementById('leftScoreDisplay').textContent = state.left.score;
+            document.getElementById('rightScoreDisplay').textContent = state.right.score;
+            document.getElementById('leftSetsDisplay').textContent = `세트 ${state.left.sets}`;
+            document.getElementById('rightSetsDisplay').textContent = `세트 ${state.right.sets}`;
+            
+            applyTheme('left');
+            applyTheme('right');
+
+            // 11점 / 15점 버튼 UI 토글 상태 업데이트
+            const btn11 = document.getElementById('btn-11');
+            const btn15 = document.getElementById('btn-15');
+            
+            if (state.gameMode === 11) {
+                btn11.className = 'px-2 py-1 sm:px-4 text-xs sm:text-base font-bold rounded-md transition-colors bg-slate-600 text-white shadow-sm';
+                btn15.className = 'px-2 py-1 sm:px-4 text-xs sm:text-base font-bold rounded-md transition-colors text-slate-400 hover:text-white';
+            } else {
+                btn15.className = 'px-2 py-1 sm:px-4 text-xs sm:text-base font-bold rounded-md transition-colors bg-slate-600 text-white shadow-sm';
+                btn11.className = 'px-2 py-1 sm:px-4 text-xs sm:text-base font-bold rounded-md transition-colors text-slate-400 hover:text-white';
+            }
+
+            // 서브권 바(Bar) 상태 업데이트
+            ['left', 'right'].forEach(side => {
+                const isServe = state.currentServer === side;
+                const bar = document.getElementById(`${side}ServeBar`);
+                
+                if (isServe) {
+                    bar.className = `${baseBarClass} bg-yellow-400 text-yellow-950 shadow-[0_0_20px_rgba(250,204,21,0.6)]`;
+                } else {
+                    bar.className = `${baseBarClass} bg-black/20 text-white/30 hover:bg-black/40 hover:text-white/50`;
+                }
+            });
+        }
+
+        function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+        document.getElementById('nextSetBtn').addEventListener('click', startNextSet);
+
+        function toggleFullScreen() {
+            const d = document.documentElement;
+            const req = d.requestFullscreen || d.webkitRequestFullscreen;
+            const ext = document.exitFullscreen || document.webkitExitFullscreen;
+            if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+                if (req) { req.call(d).catch(() => showModal('fsErrorModal')); } else { showModal('fsErrorModal'); }
+            } else {
+                if (ext) ext.call(document);
+            }
+        }
+        
+        // 선택 전에는 점수판 조작과 Escape 키로 선택 창을 닫는 것을 막습니다.
+        document.getElementById('firstServeModal').addEventListener('cancel', event => event.preventDefault());
+        document.getElementById('firstServeModal').addEventListener('keydown', event => {
+            if (event.key === 'Escape') event.preventDefault();
+        });
+        // 앱 설치와 오프라인 사용 준비
+        if ('serviceWorker' in navigator) {
+                  navigator.serviceWorker.register('sw.js');
+        }
+        let installEvent = null;
+        const installBtn = document.getElementById('install');
+        addEventListener('beforeinstallprompt', e => {
+          e.preventDefault();
+          installEvent = e;
+          installBtn.classList.remove('hidden');
+        });
+        installBtn.addEventListener('click', () => {
+          installEvent.prompt();
+          installBtn.classList.add('hidden');
+        });
+
+        // 대진표에 다녀온 경우 저장해 둔 점수로 이어갑니다.
+        const savedScore = sessionStorage.getItem('pingpong-score');
+        if (savedScore) {
+            sessionStorage.removeItem('pingpong-score');
+            state = JSON.parse(savedScore);
+            render();
+            checkWin();
+        } else {
+            render();
+            document.getElementById('firstServeModal').showModal();
+        }
+    </script>
+</body>
+</html>
