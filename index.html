@@ -190,10 +190,24 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
 /* 번호 추첨 창은 기존 대진표 레이아웃과 분리한다 */
 #lottery[hidden] { display:none; }
 #lottery { position:fixed; inset:0; z-index:100; background:#061b28e8; display:grid; place-items:center; padding:12px; }
-.lottery-panel { width:min(100%,460px); max-height:94dvh; overflow:auto; padding:18px; border:2px solid var(--line); border-radius:12px; background:var(--table-deep); text-align:center; }
+.lottery-panel { width:min(100%,760px); max-height:94dvh; overflow:auto; padding:18px; border:2px solid var(--line); border-radius:12px; background:var(--table-deep); text-align:center; }
 .lottery-panel h2 { margin:0 0 8px; }
-#lottery-names { width:100%; min-height:125px; padding:10px; font:inherit; font-size:1rem; color:var(--text); background:var(--table); border:1px solid var(--line-soft); border-radius:8px; }
-.lottery-stage { position:relative; width:min(68vw,260px); height:min(68vw,260px); margin:12px auto; }
+#lottery-names { width:100%; min-height:300px; padding:10px; font:inherit; font-size:1rem; color:var(--text); background:var(--table); border:1px solid var(--line-soft); border-radius:8px; }
+.lottery-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:center; gap:18px; margin-top:12px; }
+.lottery-people { min-width:0; text-align:left; }
+.lottery-people label { display:block; margin-bottom:6px; font-weight:700; }
+.lottery-stage { position:relative; width:min(100%,300px); aspect-ratio:1; margin:12px auto; }
+.lottery-assigned { margin:8px 0 0; padding:0; list-style:none; display:grid; gap:5px; }
+.lottery-assigned li { padding:6px 8px; border:1px solid var(--line-soft); border-radius:5px; overflow-wrap:anywhere; }
+.lottery-assigned .picked { color:var(--warn); font-weight:700; }
+@media (max-width:560px) {
+  .lottery-panel { padding:12px; }
+  .lottery-layout { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
+  #lottery-names { min-height:245px; font-size:.9rem; }
+  .lottery-stage { width:100%; }
+  .lottery-num { font-size:1rem; }
+  .lottery-assigned li { font-size:.85rem; padding:5px; }
+}
 #lottery-wheel { position:absolute; inset:0; border:5px solid var(--line); border-radius:50%; overflow:hidden; }
 .lottery-num { position:absolute; top:50%; left:50%; font-size:1.3rem; font-weight:800; text-shadow:0 1px 2px #123; }
 .lottery-pointer { position:absolute; z-index:2; top:-10px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent; border-top:27px solid var(--ball); }
@@ -217,8 +231,14 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
   <div class="lottery-panel" role="dialog" aria-modal="true" aria-labelledby="lottery-title">
     <h2 id="lottery-title">단식·복식 공통 번호 뽑기</h2>
     <p>8명의 이름을 한 줄에 한 명씩 입력하세요.</p>
-    <textarea id="lottery-names" aria-label="8명 참가자 이름"></textarea>
-    <div class="lottery-stage"><div class="lottery-pointer"></div><div id="lottery-wheel"></div></div>
+    <div class="lottery-layout">
+      <div class="lottery-people">
+        <label for="lottery-names">참가자 8명</label>
+        <textarea id="lottery-names" aria-label="8명 참가자 이름"></textarea>
+        <ol id="lottery-assigned" class="lottery-assigned" hidden></ol>
+      </div>
+      <div class="lottery-stage"><div class="lottery-pointer"></div><div id="lottery-wheel"></div></div>
+    </div>
     <p id="lottery-status" role="status">이름을 입력하고 START를 누르세요.</p>
     <div class="lottery-actions">
       <button type="button" class="action main-action" id="lottery-spin">START</button>
@@ -460,11 +480,24 @@ for (const id of Object.keys(EVENTS)) {
 const lottery = document.getElementById('lottery');
 const lotteryNames = document.getElementById('lottery-names');
 const lotteryWheel = document.getElementById('lottery-wheel');
+const lotteryAssignedList = document.getElementById('lottery-assigned');
 const lotteryStatus = document.getElementById('lottery-status');
 const lotterySpin = document.getElementById('lottery-spin');
 const lotteryApply = document.getElementById('lottery-apply');
 let lotteryPlayers = [], lotteryAssigned = {}, lotteryRemaining = [], lotteryBusy = false, lotteryAngle = 0;
 
+function showLotteryNames() {
+  lotteryAssignedList.hidden = false;
+  lotteryNames.hidden = true;
+  lotteryAssignedList.innerHTML = '';
+  lotteryPlayers.forEach((name,i)=>{
+    const row = document.createElement('li');
+    const found = Object.entries(lotteryAssigned).find(([,person])=>person===name);
+    row.textContent = name + (found ? ' — '+found[0]+'번' : ' — 대기');
+    if (found) row.className = 'picked';
+    lotteryAssignedList.appendChild(row);
+  });
+}
 function paintLottery() {
   const nums = lotteryRemaining.length ? lotteryRemaining : [1,2,3,4,5,6,7,8];
   const n = nums.length;
@@ -485,6 +518,7 @@ function paintLottery() {
 document.getElementById('lottery-open').addEventListener('click',()=>{
   lotteryPlayers = []; lotteryAssigned = {}; lotteryRemaining = []; lotteryBusy = false; lotteryAngle = 0;
   lotteryNames.value = state.singles.names.map(row=>row[0]).filter(Boolean).join('\n');
+  lotteryNames.hidden = false; lotteryAssignedList.hidden = true;
   lotteryNames.disabled = false; lotterySpin.disabled = false; lotterySpin.textContent = 'START';
   lotteryApply.disabled = true; lotteryStatus.textContent = '이름을 입력하고 START를 누르세요.';
   lotteryWheel.style.transition = 'none'; lotteryWheel.style.transform = 'rotate(0deg)';
@@ -501,6 +535,7 @@ lotterySpin.addEventListener('click',()=>{
     }
     lotteryPlayers = names; lotteryRemaining = [1,2,3,4,5,6,7,8];
     lotteryNames.disabled = true;
+    showLotteryNames();
     paintLottery();
   }
   const index = Object.keys(lotteryAssigned).length;
@@ -519,6 +554,7 @@ lotterySpin.addEventListener('click',()=>{
     lotteryAssigned[selected] = lotteryPlayers[index];
     lotteryRemaining = lotteryRemaining.filter(n=>n!==selected);
     lotteryBusy = false;
+    showLotteryNames();
     lotteryStatus.textContent = lotteryPlayers[index]+' → '+selected+'번 확정! ('+(index+1)+'/8)';
     // 다음 추첨은 확정 번호를 뺀 원판으로 시작한다.
     lotteryAngle = 0;
@@ -528,6 +564,7 @@ lotterySpin.addEventListener('click',()=>{
     if (lotteryRemaining.length===1) {
       const last = lotteryRemaining[0];
       lotteryAssigned[last] = lotteryPlayers[7];
+      showLotteryNames();
       lotteryStatus.textContent += ' 마지막 '+lotteryPlayers[7]+' → '+last+'번 자동 확정! (8/8)';
       lotteryRemaining = [];
       lotterySpin.disabled = true;
