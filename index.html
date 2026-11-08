@@ -449,13 +449,16 @@ const progress = document.getElementById('draw-progress');
 const spinBtn = document.getElementById('draw-spin');
 const applyBtn = document.getElementById('draw-apply');
 const namesBox = document.getElementById('draw-names');
-document.getElementById('draw-open').addEventListener('click', openDraw);\nfunction openDraw() {
-  drawId = id;
-  const cfg = EVENTS[id];
-  document.getElementById('draw-title').textContent = cfg.title + ' 번호 뽑기';
-  namesBox.value = state[id].names.map(row => row.join(', ')).filter(row => row.replace(/[, ]/g,'')).join('\n');
+document.getElementById('draw-open').addEventListener('click', openDraw);
+function openDraw() {
+  drawId = 'singles';
+  const cfg = EVENTS.singles;
+  document.getElementById('draw-title').textContent = '단식·복식 공통 번호 뽑기';
+  namesBox.value = state.singles.names.map(row => row[0]).filter(Boolean).join('\n');
   drawEntries = []; drawRemaining = []; drawAssigned = {}; drawBusy = false; drawAngle = 0;
-  wheel.style.transition = 'none'; wheel.style.transform = 'rotate(0deg)';\n  labels.style.transition = 'none'; labels.style.transform = 'rotate(0deg)';\n  spinBtn.textContent = 'START';
+  wheel.style.transition = 'none'; wheel.style.transform = 'rotate(0deg)';
+  labels.style.transition = 'none'; labels.style.transform = 'rotate(0deg)';
+  spinBtn.textContent = 'START';
   namesBox.disabled = false; spinBtn.disabled = false; applyBtn.disabled = true;
   result.textContent = '이름을 입력하고 START를 누르세요.';
   progress.textContent = '';
