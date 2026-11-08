@@ -1,5 +1,5 @@
 // 인터넷이 끊겨도 대진표와 점수판이 열리도록 저장해 두는 서비스 워커
-const CACHE = 'pingpong2-v7';
+const CACHE = 'pingpong2-v8';
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => Promise.all([
