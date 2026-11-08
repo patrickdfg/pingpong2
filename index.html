@@ -476,7 +476,9 @@ function drawWheel(nums) {
     const a = (i+.5)*2*Math.PI/n-Math.PI/2;
     const el = document.createElement('span');
     el.textContent = num;
-    el.style.transform = 'translate(-50%,-50%) translate('+Math.cos(a)*104+'px,'+Math.sin(a)*104+'px)';
+    el.style.left = (50 + Math.cos(a)*35) + '%';
+    el.style.top = (50 + Math.sin(a)*35) + '%';
+    el.style.transform = 'translate(-50%,-50%)';
     labels.appendChild(el);
   });
 }
