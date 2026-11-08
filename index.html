@@ -186,6 +186,20 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
   .slot.arrive { animation: none; }
   * { transition: none !important; }
 }
+
+/* 번호 추첨 창은 기존 대진표 레이아웃과 분리한다 */
+#lottery[hidden] { display:none; }
+#lottery { position:fixed; inset:0; z-index:100; background:#061b28e8; display:grid; place-items:center; padding:12px; }
+.lottery-panel { width:min(100%,460px); max-height:94dvh; overflow:auto; padding:18px; border:2px solid var(--line); border-radius:12px; background:var(--table-deep); text-align:center; }
+.lottery-panel h2 { margin:0 0 8px; }
+#lottery-names { width:100%; min-height:125px; padding:10px; font:inherit; font-size:1rem; color:var(--text); background:var(--table); border:1px solid var(--line-soft); border-radius:8px; }
+.lottery-stage { position:relative; width:min(68vw,260px); height:min(68vw,260px); margin:12px auto; }
+#lottery-wheel { position:absolute; inset:0; border:5px solid var(--line); border-radius:50%; overflow:hidden; }
+.lottery-num { position:absolute; top:50%; left:50%; font-size:1.3rem; font-weight:800; text-shadow:0 1px 2px #123; }
+.lottery-pointer { position:absolute; z-index:2; top:-10px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent; border-top:27px solid var(--ball); }
+.lottery-actions { display:flex; justify-content:center; flex-wrap:wrap; gap:8px; }
+.lottery-actions button:disabled { opacity:.45; }
+#lottery-status { min-height:2.5em; font-weight:700; color:var(--warn); }
 </style>
 </head>
 <body>
@@ -193,10 +207,26 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
   <h1>탁구 대진표</h1>
   <nav>
     <button type="button" id="install" class="action hidden">앱 설치</button>
+    <button type="button" class="action" id="lottery-open">번호 뽑기</button>
     <a class="action" href="score.html">점수판</a>
     <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
   </nav>
 </header>
+
+<div id="lottery" hidden>
+  <div class="lottery-panel" role="dialog" aria-modal="true" aria-labelledby="lottery-title">
+    <h2 id="lottery-title">단식·복식 공통 번호 뽑기</h2>
+    <p>8명의 이름을 한 줄에 한 명씩 입력하세요.</p>
+    <textarea id="lottery-names" aria-label="8명 참가자 이름"></textarea>
+    <div class="lottery-stage"><div class="lottery-pointer"></div><div id="lottery-wheel"></div></div>
+    <p id="lottery-status" role="status">이름을 입력하고 START를 누르세요.</p>
+    <div class="lottery-actions">
+      <button type="button" class="action main-action" id="lottery-spin">START</button>
+      <button type="button" class="action" id="lottery-apply" disabled>대진표 적용</button>
+      <button type="button" class="action" id="lottery-close">닫기</button>
+    </div>
+  </div>
+</div>
 <main>
   <section class="event" id="doubles" aria-label="복식 대진표"></section>
   <section class="event mirror" id="singles" aria-label="단식 대진표"></section>
@@ -424,6 +454,88 @@ for (const id of Object.keys(EVENTS)) {
   });
   render(id);
 }
+
+
+// 8명의 추첨 번호를 단식과 복식에 공통으로 배정한다
+const lottery = document.getElementById('lottery');
+const lotteryNames = document.getElementById('lottery-names');
+const lotteryWheel = document.getElementById('lottery-wheel');
+const lotteryStatus = document.getElementById('lottery-status');
+const lotterySpin = document.getElementById('lottery-spin');
+const lotteryApply = document.getElementById('lottery-apply');
+let lotteryPlayers = [], lotteryAssigned = {}, lotteryRemaining = [], lotteryBusy = false, lotteryAngle = 0;
+
+function paintLottery() {
+  const colors = ['#e8893b','#267ea8','#399476','#8a64b0','#c95c74','#4475b4','#b28d39','#4c8291'];
+  lotteryWheel.style.background = 'conic-gradient(' + colors.map((c,i)=>c+' '+i*12.5+'% '+(i+1)*12.5+'%').join(',') + ')';
+  lotteryWheel.innerHTML = '';
+  for (let i=0;i<8;i++) {
+    const a = (i+.5)*Math.PI/4-Math.PI/2;
+    const num = document.createElement('span');
+    num.className = 'lottery-num';
+    num.textContent = lotteryRemaining.length && !lotteryRemaining.includes(i+1) ? '✓' : String(i+1);
+    num.style.transform = 'translate(-50%,-50%) translate('+Math.cos(a)*88+'px,'+Math.sin(a)*88+'px)';
+    lotteryWheel.appendChild(num);
+  }
+}
+document.getElementById('lottery-open').addEventListener('click',()=>{
+  lotteryPlayers = []; lotteryAssigned = {}; lotteryRemaining = []; lotteryBusy = false; lotteryAngle = 0;
+  lotteryNames.value = state.singles.names.map(row=>row[0]).filter(Boolean).join('\n');
+  lotteryNames.disabled = false; lotterySpin.disabled = false; lotterySpin.textContent = 'START';
+  lotteryApply.disabled = true; lotteryStatus.textContent = '이름을 입력하고 START를 누르세요.';
+  lotteryWheel.style.transition = 'none'; lotteryWheel.style.transform = 'rotate(0deg)';
+  paintLottery(); lottery.hidden = false;
+});
+document.getElementById('lottery-close').addEventListener('click',()=>{ if (!lotteryBusy) lottery.hidden = true; });
+lotterySpin.addEventListener('click',()=>{
+  if (lotteryBusy) return;
+  if (!lotteryPlayers.length) {
+    const names = lotteryNames.value.split(/\r?\n/).map(n=>n.trim()).filter(Boolean);
+    if (names.length!==8 || names.some(n=>n.length>12) || new Set(names).size!==8) {
+      lotteryStatus.textContent = '서로 다른 이름 8명을 한 줄씩 입력하세요. (각 12자 이내)';
+      return;
+    }
+    lotteryPlayers = names; lotteryRemaining = [1,2,3,4,5,6,7,8];
+    lotteryNames.disabled = true;
+  }
+  const index = Object.keys(lotteryAssigned).length;
+  if (index>=8) return;
+  const selected = lotteryRemaining[Math.floor(Math.random()*lotteryRemaining.length)];
+  const target = (360-(selected-.5)*45)%360;
+  const current = ((lotteryAngle%360)+360)%360;
+  lotteryAngle += 360*5 + ((target-current+360)%360);
+  lotteryBusy = true; lotterySpin.disabled = true;
+  lotteryStatus.textContent = lotteryPlayers[index]+' 추첨 중…';
+  lotteryWheel.style.transition = 'transform 3s cubic-bezier(.12,.7,.12,1)';
+  lotteryWheel.style.transform = 'rotate('+lotteryAngle+'deg)';
+  setTimeout(()=>{
+    lotteryAssigned[selected] = lotteryPlayers[index];
+    lotteryRemaining = lotteryRemaining.filter(n=>n!==selected);
+    lotteryBusy = false;
+    lotteryStatus.textContent = lotteryPlayers[index]+' → '+selected+'번 확정! ('+(index+1)+'/8)';
+    if (lotteryRemaining.length) {
+      lotterySpin.textContent = '다음 참가자 START';
+      lotterySpin.disabled = false;
+    } else {
+      lotteryStatus.textContent += ' 대진표 적용을 누르세요.';
+      lotteryApply.disabled = false;
+    }
+  },3050);
+});
+lotteryApply.addEventListener('click',()=>{
+  if (lotteryBusy || lotteryRemaining.length || Object.keys(lotteryAssigned).length!==8) return;
+  const ordered = Array.from({length:8},(_,i)=>lotteryAssigned[i+1]);
+  state.singles.names = ordered.map(name=>[name]);
+  state.doubles.names = Array.from({length:4},(_,i)=>[ordered[2*i],ordered[2*i+1]]);
+  for (const id of Object.keys(EVENTS)) {
+    state[id].wins = blank(EVENTS[id]).wins;
+    state[id].playing = false;
+    notes[id] = '';
+  }
+  save();
+  Object.keys(EVENTS).forEach(render);
+  lottery.hidden = true;
+});
 
 // 전체화면을 지원하지 않는 브라우저에서는 버튼을 숨긴다
 const fullBtn = document.getElementById('full');
