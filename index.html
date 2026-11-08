@@ -466,17 +466,21 @@ const lotteryApply = document.getElementById('lottery-apply');
 let lotteryPlayers = [], lotteryAssigned = {}, lotteryRemaining = [], lotteryBusy = false, lotteryAngle = 0;
 
 function paintLottery() {
+  const nums = lotteryRemaining.length ? lotteryRemaining : [1,2,3,4,5,6,7,8];
+  const n = nums.length;
   const colors = ['#e8893b','#267ea8','#399476','#8a64b0','#c95c74','#4475b4','#b28d39','#4c8291'];
-  lotteryWheel.style.background = 'conic-gradient(' + colors.map((c,i)=>c+' '+i*12.5+'% '+(i+1)*12.5+'%').join(',') + ')';
+  lotteryWheel.style.background = 'conic-gradient(' + nums.map((_,i)=>colors[i%colors.length]+' '+(i*100/n)+'% '+((i+1)*100/n)+'%').join(',') + ')';
   lotteryWheel.innerHTML = '';
-  for (let i=0;i<8;i++) {
-    const a = (i+.5)*Math.PI/4-Math.PI/2;
+  nums.forEach((number,i)=>{
+    const a = (i+.5)*2*Math.PI/n-Math.PI/2;
     const num = document.createElement('span');
     num.className = 'lottery-num';
-    num.textContent = lotteryRemaining.length && !lotteryRemaining.includes(i+1) ? '✓' : String(i+1);
-    num.style.transform = 'translate(-50%,-50%) translate('+Math.cos(a)*88+'px,'+Math.sin(a)*88+'px)';
+    num.textContent = number;
+    num.style.left = (50+Math.cos(a)*34)+'%';
+    num.style.top = (50+Math.sin(a)*34)+'%';
+    num.style.transform = 'translate(-50%,-50%)';
     lotteryWheel.appendChild(num);
-  }
+  });
 }
 document.getElementById('lottery-open').addEventListener('click',()=>{
   lotteryPlayers = []; lotteryAssigned = {}; lotteryRemaining = []; lotteryBusy = false; lotteryAngle = 0;
@@ -497,11 +501,14 @@ lotterySpin.addEventListener('click',()=>{
     }
     lotteryPlayers = names; lotteryRemaining = [1,2,3,4,5,6,7,8];
     lotteryNames.disabled = true;
+    paintLottery();
   }
   const index = Object.keys(lotteryAssigned).length;
-  if (index>=8) return;
-  const selected = lotteryRemaining[Math.floor(Math.random()*lotteryRemaining.length)];
-  const target = (360-(selected-.5)*45)%360;
+  if (index>=7) return;
+  const n = lotteryRemaining.length;
+  const chosenIndex = Math.floor(Math.random()*n);
+  const selected = lotteryRemaining[chosenIndex];
+  const target = (360-(chosenIndex+.5)*360/n)%360;
   const current = ((lotteryAngle%360)+360)%360;
   lotteryAngle += 360*5 + ((target-current+360)%360);
   lotteryBusy = true; lotterySpin.disabled = true;
@@ -513,12 +520,21 @@ lotterySpin.addEventListener('click',()=>{
     lotteryRemaining = lotteryRemaining.filter(n=>n!==selected);
     lotteryBusy = false;
     lotteryStatus.textContent = lotteryPlayers[index]+' → '+selected+'번 확정! ('+(index+1)+'/8)';
-    if (lotteryRemaining.length) {
+    // 다음 추첨은 확정 번호를 뺀 원판으로 시작한다.
+    lotteryAngle = 0;
+    lotteryWheel.style.transition = 'none';
+    lotteryWheel.style.transform = 'rotate(0deg)';
+    paintLottery();
+    if (lotteryRemaining.length===1) {
+      const last = lotteryRemaining[0];
+      lotteryAssigned[last] = lotteryPlayers[7];
+      lotteryStatus.textContent += ' 마지막 '+lotteryPlayers[7]+' → '+last+'번 자동 확정! (8/8)';
+      lotteryRemaining = [];
+      lotterySpin.disabled = true;
+      lotteryApply.disabled = false;
+    } else {
       lotterySpin.textContent = '다음 참가자 START';
       lotterySpin.disabled = false;
-    } else {
-      lotteryStatus.textContent += ' 대진표 적용을 누르세요.';
-      lotteryApply.disabled = false;
     }
   },3050);
 });
