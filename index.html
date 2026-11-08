@@ -540,11 +540,17 @@ function spinDraw() {
 spinBtn.addEventListener('click',spinDraw);
 applyBtn.addEventListener('click',()=>{
   if (drawBusy || drawRemaining.length || !drawId) return;
-  const id = drawId;
-  state[id].names = Array.from({length:EVENTS[id].size},(_,i)=>drawAssigned[i+1]);
-  state[id].wins = blank(EVENTS[id]).wins;
-  state[id].playing = false;
-  save(); render(id); overlay.hidden = true; drawId = null;
+  const ordered = Array.from({length:8},(_,i)=>drawAssigned[i+1][0]);
+  state.singles.names = ordered.map(name=>[name]);
+  state.doubles.names = Array.from({length:4},(_,i)=>[ordered[i*2],ordered[i*2+1]]);
+  for (const id of Object.keys(EVENTS)) {
+    state[id].wins = blank(EVENTS[id]).wins;
+    state[id].playing = false;
+  }
+  save();
+  Object.keys(EVENTS).forEach(render);
+  overlay.hidden = true;
+  drawId = null;
 });
 document.getElementById('draw-close').addEventListener('click',()=>{
   if(drawBusy) return;
