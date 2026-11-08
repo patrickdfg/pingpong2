@@ -186,6 +186,20 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
   .slot.arrive { animation: none; }
   * { transition: none !important; }
 }
+
+/* 번호 추첨 원판 */
+.draw-overlay { position:fixed; inset:0; z-index:50; background:#071e2beF; display:grid; place-items:center; padding:16px; overflow:auto; }
+.draw-overlay[hidden] { display:none; }
+.draw-panel { width:min(94vw,480px); padding:22px; border:2px solid var(--line-soft); border-radius:18px; background:var(--table-deep); text-align:center; }
+.draw-panel h2 { margin:0 0 12px; }
+.draw-panel textarea { width:100%; min-height:110px; resize:vertical; border:1px solid var(--line-soft); border-radius:8px; padding:10px; background:var(--table); color:white; font:inherit; }
+.draw-wheel-wrap { position:relative; width:min(72vw,300px); margin:16px auto; }
+.draw-wheel { width:100%; aspect-ratio:1; border-radius:50%; border:6px solid white; transition:transform 4s cubic-bezier(.12,.7,.12,1); }
+.draw-pointer { position:absolute; z-index:2; top:-12px; left:50%; transform:translateX(-50%); width:0; height:0; border-left:15px solid transparent; border-right:15px solid transparent; border-top:28px solid var(--ball); }
+.draw-labels { position:absolute; inset:0; pointer-events:none; }
+.draw-labels span { position:absolute; top:50%; left:50%; font-weight:900; font-size:1.35rem; text-shadow:0 1px 3px #000; }
+.draw-controls { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:12px; }
+.draw-result { min-height:2em; font-weight:800; color:var(--ball); }
 </style>
 </head>
 <body>
@@ -197,7 +211,7 @@ button.slot.lost { color: var(--text-soft); font-weight: 500; }
     <button type="button" id="full" aria-label="전체화면" title="전체화면"><span></span></button>
   </nav>
 </header>
-<main>
+<div id="draw-overlay" class="draw-overlay" hidden><div class="draw-panel" role="dialog" aria-modal="true" aria-label="번호 추첨"><h2 id="draw-title">번호 추첨</h2><p>참가자 이름을 한 줄에 하나씩 입력하세요. 복식은 한 줄에 두 명을 쉼표로 구분합니다.</p><textarea id="draw-names" aria-label="참가자 명단"></textarea><div class="draw-wheel-wrap"><div class="draw-pointer"></div><div id="draw-wheel" class="draw-wheel"></div><div id="draw-labels" class="draw-labels"></div></div><p id="draw-result" class="draw-result" role="status"></p><p id="draw-progress"></p><div class="draw-controls"><button class="action main-action" id="draw-spin">START</button><button class="action" id="draw-apply" disabled>대진표 적용</button><button class="action" id="draw-close">닫기</button></div></div></div><main>
   <section class="event" id="doubles" aria-label="복식 대진표"></section>
   <section class="event mirror" id="singles" aria-label="단식 대진표"></section>
 </main>
@@ -306,7 +320,7 @@ function render(id) {
   const buttons = st.playing
     ? `<button type="button" class="action" data-do="edit">이름 고치기</button>
        <button type="button" class="action" data-do="clear">결과 지우기</button>`
-    : '<button type="button" class="action main-action" data-do="start">대진 시작</button>';
+    : '<button type="button" class="action" data-do="draw">원판 뽑기</button><button type="button" class="action main-action" data-do="start">대진 시작</button>';
   box.innerHTML = `
     <div class="event-head"><h2>${cfg.title}<small>${cfg.count}</small></h2>${buttons}</div>
     <p class="msg ${notes[id] ? 'warn' : ''}" role="status">${hint}</p>
@@ -401,7 +415,7 @@ for (const id of Object.keys(EVENTS)) {
   box.addEventListener('click', e => {
     const act = e.target.closest('[data-do]');
     if (act) {
-      if (act.dataset.do === 'start') start(id);
+      if (act.dataset.do === 'draw') openDraw(id);\n      if (act.dataset.do === 'start') start(id);
       if (act.dataset.do === 'clear') clearResults(id, act);
       if (act.dataset.do === 'edit') { state[id].playing = false; save(); render(id); }
       return;
@@ -424,6 +438,115 @@ for (const id of Object.keys(EVENTS)) {
   });
   render(id);
 }
+
+
+let drawId = null, drawEntries = [], drawRemaining = [], drawAssigned = {}, drawBusy = false, drawAngle = 0;
+const overlay = document.getElementById('draw-overlay');
+const wheel = document.getElementById('draw-wheel');
+const labels = document.getElementById('draw-labels');
+const result = document.getElementById('draw-result');
+const progress = document.getElementById('draw-progress');
+const spinBtn = document.getElementById('draw-spin');
+const applyBtn = document.getElementById('draw-apply');
+const namesBox = document.getElementById('draw-names');
+function openDraw(id) {
+  drawId = id;
+  const cfg = EVENTS[id];
+  document.getElementById('draw-title').textContent = cfg.title + ' 번호 뽑기';
+  namesBox.value = state[id].names.map(row => row.join(', ')).filter(row => row.replace(/[, ]/g,'')).join('\n');
+  drawEntries = []; drawRemaining = []; drawAssigned = {}; drawBusy = false; drawAngle = 0;
+  wheel.style.transition = 'none'; wheel.style.transform = 'rotate(0deg)';
+  namesBox.disabled = false; spinBtn.disabled = false; applyBtn.disabled = true;
+  result.textContent = '이름을 입력하고 START를 누르세요.';
+  progress.textContent = '';
+  drawWheel(Array.from({length:cfg.size},(_,i)=>i+1));
+  overlay.hidden = false;
+}
+function drawWheel(nums) {
+  const n = nums.length;
+  wheel.style.background = n ? 'conic-gradient(' + nums.map((_,i)=> {
+    const colors=['#ed8f39','#227eaa','#359578','#8b64b2','#cf6074','#3970b0','#b38b37','#477c89'];
+    return colors[i%colors.length]+' '+(i*100/n)+'% '+((i+1)*100/n)+'%';
+  }).join(',') + ')' : 'var(--table)';
+  labels.innerHTML = '';
+  nums.forEach((num,i)=>{
+    const a = (i+.5)*2*Math.PI/n-Math.PI/2;
+    const el = document.createElement('span');
+    el.textContent = num;
+    el.style.transform = 'translate(-50%,-50%) translate('+Math.cos(a)*104+'px,'+Math.sin(a)*104+'px)';
+    labels.appendChild(el);
+  });
+}
+function parseDrawEntries() {
+  const cfg = EVENTS[drawId];
+  const lines = namesBox.value.split(/\n/).map(s=>s.trim()).filter(Boolean);
+  if (lines.length !== cfg.size) {
+    result.textContent = cfg.size + (cfg.per===2?'팀':'명') + '을 입력해야 합니다. 현재 '+lines.length+'개입니다.';
+    return null;
+  }
+  const entries = lines.map(s=>cfg.per===2?s.split(',').map(n=>n.trim()):[s]);
+  if (entries.some(row=>row.length!==cfg.per || row.some(n=>!n || n.length>12))) {
+    result.textContent = cfg.per===2?'복식은 한 줄에 선수 2명을 쉼표로 구분하세요.':'이름은 1~12자로 입력하세요.';
+    return null;
+  }
+  return entries;
+}
+function spinDraw() {
+  if (drawBusy || !drawId) return;
+  if (!drawEntries.length) {
+    const entries = parseDrawEntries();
+    if (!entries) return;
+    drawEntries = entries;
+    drawRemaining = Array.from({length:EVENTS[drawId].size},(_,i)=>i+1);
+    namesBox.disabled = true;
+  }
+  const idx = Object.keys(drawAssigned).length;
+  if (idx>=drawEntries.length) return;
+  const nums = [...drawRemaining];
+  const winningIndex = Math.floor(Math.random()*nums.length);
+  const selected = nums[winningIndex];
+  drawWheel(nums);
+  drawBusy = true; spinBtn.disabled = true; applyBtn.disabled = true;
+  const segment = 360/nums.length;
+  const target = (360-(winningIndex+.5)*segment)%360;
+  const current = ((drawAngle%360)+360)%360;
+  drawAngle += 360*6 + ((target-current+360)%360);
+  wheel.style.transition = 'transform 4s cubic-bezier(.12,.7,.12,1)';
+  wheel.style.transform = 'rotate('+drawAngle+'deg)';
+  // 번호 표시도 원판과 함께 회전
+  labels.style.transition = wheel.style.transition;
+  labels.style.transform = 'rotate('+drawAngle+'deg)';
+  result.textContent = drawEntries[idx].join(' / ')+' 추첨 중…';
+  setTimeout(()=>{
+    drawAssigned[selected] = drawEntries[idx];
+    drawRemaining = drawRemaining.filter(n=>n!==selected);
+    drawBusy = false;
+    result.textContent = drawEntries[idx].join(' / ')+' → '+selected+'번 확정!';
+    progress.textContent = Object.keys(drawAssigned).length+' / '+drawEntries.length+' 완료';
+    if (drawRemaining.length) {
+      spinBtn.disabled = false;
+      spinBtn.textContent = '다음 참가자 START';
+      // 원판은 다음 회전 직전에 남은 번호로 갱신
+    } else {
+      spinBtn.disabled = true;
+      applyBtn.disabled = false;
+      result.textContent += ' 모든 추첨 완료!';
+    }
+  },4050);
+}
+spinBtn.addEventListener('click',spinDraw);
+applyBtn.addEventListener('click',()=>{
+  if (drawBusy || drawRemaining.length || !drawId) return;
+  const id = drawId;
+  state[id].names = Array.from({length:EVENTS[id].size},(_,i)=>drawAssigned[i+1]);
+  state[id].wins = blank(EVENTS[id]).wins;
+  state[id].playing = false;
+  save(); render(id); overlay.hidden = true; drawId = null;
+});
+document.getElementById('draw-close').addEventListener('click',()=>{
+  if(drawBusy) return;
+  overlay.hidden = true; drawId = null;
+});
 
 // 전체화면을 지원하지 않는 브라우저에서는 버튼을 숨긴다
 const fullBtn = document.getElementById('full');
